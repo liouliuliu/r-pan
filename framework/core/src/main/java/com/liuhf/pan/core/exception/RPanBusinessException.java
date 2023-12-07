@@ -1,12 +1,14 @@
 package com.liuhf.pan.core.exception;
 
 import com.liuhf.pan.core.response.ResponseCode;
+import lombok.Data;
 
 /**
  * @author: lhf
  * @date: 2023/11/29 22:01
  * @description 自定义全局业务异常类
  */
+@Data
 public class RPanBusinessException extends RuntimeException{
 
 

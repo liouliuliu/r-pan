@@ -21,6 +21,7 @@
         <module>framework/core</module>
         <module>framework/web</module>
         <module>framework/swagger2</module>
+        <module>distribution</module>
     </modules>
     <packaging>pom</packaging>
 

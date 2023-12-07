@@ -40,7 +40,7 @@ public class HttpLogEntityBuilder {
             httpLogEntity.setRequestParams(new String(requestWrapper.getContentAsByteArray()));
         }
         String responseContentType = responseWrapper.getContentType();
-        if (StringUtils.equals("application/json;charset=UTF-8", responseContentType)) {
+        if (StringUtils.equals("application/json", responseContentType)) {
             httpLogEntity.setResponseData(new String(responseWrapper.getContentAsByteArray()));
         } else {
             httpLogEntity.setResponseData("Stream Body...");
