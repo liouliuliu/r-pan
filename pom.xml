@@ -22,6 +22,7 @@
         <module>framework/web</module>
         <module>framework/swagger2</module>
         <module>distribution</module>
+        <module>framework/schedule</module>
     </modules>
     <packaging>pom</packaging>
 
