@@ -19,7 +19,7 @@ public class RPanUser implements Serializable {
      * 用户id
      */
     @TableId
-    private Long user_id;
+    private Long userId;
 
     /**
      * 用户名
@@ -49,12 +49,12 @@ public class RPanUser implements Serializable {
     /**
      * 创建时间
      */
-    private Date create_time;
+    private Date createTime;
 
     /**
      * 更新时间
      */
-    private Date update_time;
+    private Date updateTime;
 
     @TableField(exist = false)
     private static final long serialVersionUID = 1L;

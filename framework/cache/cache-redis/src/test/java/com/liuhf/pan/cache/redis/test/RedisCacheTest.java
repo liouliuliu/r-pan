@@ -43,7 +43,7 @@ public class RedisCacheTest {
     @Test
     public void caffeineCacheAnnotationTest() {
         for (int i = 0; i < 2; i++) {
-            cacheAnnotationTester.testCacheable("imooc");
+            cacheAnnotationTester.testCacheable("liuhf");
         }
     }
 

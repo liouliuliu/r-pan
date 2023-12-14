@@ -14,8 +14,13 @@ spring:
   datasource:
     username: root
     password: root123
-    url: jdbc:mysql://127.0.0.1:3306/r_pan?characterEncoding=utf8&serverTimeZone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://localhost:3306/r_pan?serverTimezone=GMT%2B8&useSSL=false
     driver-class-name: com.mysql.cj.jdbc.Driver
+  redis:
+    database: 1
+    host: 127.0.0.1
+    port: 16379
+    password: 123456
 
 mybatis-plus:
   mapper-locations: classpath:mappers/**/*.xml
