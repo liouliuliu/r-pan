@@ -2,6 +2,7 @@ package com.liuhf.pan.server.modules.user.controller;
 
 import com.liuhf.pan.core.response.R;
 import com.liuhf.pan.core.utils.IdUtil;
+import com.liuhf.pan.server.common.annotation.LoginIgnore;
 import com.liuhf.pan.server.common.utils.UserIdUtil;
 import com.liuhf.pan.server.modules.user.context.UserLoginContext;
 import com.liuhf.pan.server.modules.user.context.UserRegisterContext;
@@ -41,6 +42,7 @@ public class UserController {
             consumes = MediaType.APPLICATION_JSON_VALUE,
             produces = MediaType.APPLICATION_JSON_VALUE
     )
+    @LoginIgnore
     @PostMapping("register")
     public R register(@Validated @RequestBody UserRegisterPO userRegisterPO){
         UserRegisterContext userRegisterContext = userConverter.userRegisterPO2UserRegisterContext(userRegisterPO);
@@ -55,6 +57,7 @@ public class UserController {
             consumes = MediaType.APPLICATION_JSON_VALUE,
             produces = MediaType.APPLICATION_JSON_VALUE
     )
+    @LoginIgnore
     @PostMapping("login")
     public R register(@Validated @RequestBody UserLoginPO userLoginPO){
         UserLoginContext userLoginContext = userConverter.userLoginPO2UserLoginContext(userLoginPO);

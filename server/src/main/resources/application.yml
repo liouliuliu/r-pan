@@ -14,7 +14,7 @@ spring:
   datasource:
     username: root
     password: root123
-    url: jdbc:mysql://localhost:3306/r_pan?serverTimezone=GMT%2B8&useSSL=false
+    url: jdbc:mysql://localhost:3306/r_pan?serverTimezone=GMT%2B8&useSSL=false&allowPublicKeyRetrieval=true
     driver-class-name: com.mysql.cj.jdbc.Driver
   redis:
     database: 1
