@@ -10,14 +10,16 @@ import com.liuhf.pan.core.utils.JwtUtil;
 import com.liuhf.pan.core.utils.PasswordUtil;
 import com.liuhf.pan.server.modules.file.constants.FileConstants;
 import com.liuhf.pan.server.modules.file.context.CreateFolderContext;
+import com.liuhf.pan.server.modules.file.entity.RPanUserFile;
 import com.liuhf.pan.server.modules.file.service.IUserFileService;
 import com.liuhf.pan.server.modules.user.constants.UserConstants;
-import com.liuhf.pan.server.modules.user.context.UserLoginContext;
-import com.liuhf.pan.server.modules.user.context.UserRegisterContext;
+import com.liuhf.pan.server.modules.user.context.*;
 import com.liuhf.pan.server.modules.user.converter.UserConverter;
 import com.liuhf.pan.server.modules.user.entity.RPanUser;
 import com.liuhf.pan.server.modules.user.service.IUserService;
 import com.liuhf.pan.server.modules.user.mapper.RPanUserMapper;
+import com.liuhf.pan.server.modules.user.vo.UserInfoVO;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
@@ -83,13 +85,169 @@ public class UserServiceImpl extends ServiceImpl<RPanUserMapper, RPanUser> imple
             Cache cache = cacheManager.getCache(CacheConstants.R_PAN_CACHE_NAME);
             assert cache != null;
             cache.evict(UserConstants.USER_LOGIN_PREFIX + userId);
-        }catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
             throw new RPanBusinessException("用户退出登录失败！");
         }
     }
 
+    @Override
+    public String checkUsername(CheckUsernameContext checkUsernameContext) {
+        String question = baseMapper.selectQuestionByUsername(checkUsernameContext.getUsername());
+        if (StringUtils.isBlank(question)) {
+            throw new RPanBusinessException("没有此用户");
+        }
+        return question;
+    }
+
+    /**
+     * 用户忘记密码-校验密保答案
+     *
+     * @return 临时token
+     */
+    @Override
+    public String checkAnswer(CheckAnswerContext checkAnswerContext) {
+        QueryWrapper<RPanUser> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("username", checkAnswerContext.getUsername());
+        queryWrapper.eq("question", checkAnswerContext.getQuestion());
+        queryWrapper.eq("answer", checkAnswerContext.getAnswer());
+        int count = count(queryWrapper);
+
+        if (count == 0) {
+            throw new RPanBusinessException("密保答案错误");
+        }
+
+        return generateCheckAnswerToken(checkAnswerContext);
+    }
+
+    /**
+     * 重置用户密码
+     */
+    @Override
+    public void resetPassword(ResetPasswordContext resetPasswordContext) {
+        checkForgetPasswordToken(resetPasswordContext);
+        checkAndResetUserPassword(resetPasswordContext);
+    }
+
+    /**
+     * 用户在线修改密码
+     *
+     */
+    @Override
+    public void changePassword(ChangePasswordContext changePasswordContext) {
+        checkOldPassword(changePasswordContext);
+        doChangePassword(changePasswordContext);
+        exitLoginStatus(changePasswordContext);
+    }
+
+    /**
+     * 查询用户登录的基本信息
+     *
+     * @param userId
+     * @return
+     */
+    @Override
+    public UserInfoVO info(Long userId) {
+        RPanUser entity = getById(userId);
+        if (Objects.isNull(entity)) {
+            throw new RPanBusinessException("用户信息查询失败");
+        }
+        RPanUserFile rPanUserFile = getUserRootFileInfo(userId);
+        if (Objects.isNull(rPanUserFile)) {
+            throw new RPanBusinessException("查询用户根文件夹信息失败");
+        }
+        return userConverter.assembleUserInfoVO(entity,rPanUserFile);
+    }
+
+    /**
+     * 获取用户根文件夹信息实体
+     */
+    private RPanUserFile getUserRootFileInfo(Long userId) {
+        return iUserFileService.getUserRootFile(userId);
+    }
+
     //**************************************************private**************************************************
+
+    /**
+     * 退出用户的登录状态
+     */
+    private void exitLoginStatus(ChangePasswordContext changePasswordContext) {
+        exit(changePasswordContext.getUserId());
+    }
+
+    /**
+     * 修改密码信息
+     */
+    private void doChangePassword(ChangePasswordContext changePasswordContext) {
+        String newPassword = changePasswordContext.getNewPassword();
+        RPanUser entity = changePasswordContext.getEntity();
+        String encNewPassword = PasswordUtil.encryptPassword(entity.getSalt(), newPassword);
+        entity.setPassword(encNewPassword);
+        if (!updateById(entity)){
+            throw new RPanBusinessException("修改用户密码失败");
+        }
+    }
+
+    /**
+     * 校验用户旧密码，查询并封装用户的实体信息到上下文对象中
+     */
+    private void checkOldPassword(ChangePasswordContext changePasswordContext) {
+        Long userId = changePasswordContext.getUserId();
+        String oldPassword = changePasswordContext.getOldPassword();
+
+        RPanUser entity = getById(userId);
+        if (Objects.isNull(entity)) {
+            throw new RPanBusinessException("用户信息不存在");
+        }
+        changePasswordContext.setEntity(entity);
+        String encOldPassword = PasswordUtil.encryptPassword(entity.getSalt(), oldPassword);
+        if (!Objects.equals(encOldPassword,entity.getPassword())) {
+            throw new RPanBusinessException("旧密码不正确");
+        }
+    }
+    
+    /**
+     * 校验用户信息并重置用户密码
+     */
+    private void checkAndResetUserPassword(ResetPasswordContext resetPasswordContext) {
+        String username = resetPasswordContext.getUsername();
+        String password = resetPasswordContext.getPassword();
+        RPanUser entity = getRPanUserByUsername(username);
+        if (Objects.isNull(entity)) {
+            throw new RPanBusinessException("用户信息不存在");
+        }
+        String newDbPassword = PasswordUtil.encryptPassword(entity.getSalt(), password);
+        entity.setPassword(newDbPassword);
+        entity.setUpdateTime(new Date());
+        if (!updateById(entity)) {
+            throw new RPanBusinessException("重置用户密码失败");
+        }
+    }
+
+    /**
+     * 验证忘记密码的token是否有效
+     */
+    private void checkForgetPasswordToken(ResetPasswordContext resetPasswordContext) {
+        String token = resetPasswordContext.getToken();
+        Object value = JwtUtil.analyzeToken(token, UserConstants.FORGET_USERNAME);
+        if (Objects.isNull(value)) {
+            throw new RPanBusinessException(ResponseCode.TOKEN_EXPIRE);
+        }
+        String tokenUsername = String.valueOf(value);
+        if (!Objects.equals(tokenUsername, resetPasswordContext.getUsername())) {
+            throw new RPanBusinessException("token 错误");
+        }
+    }
+
+    /**
+     * 生成用户忘记密码-校验密保答案用过的临时token
+     * token的是失效时间为5分钟
+     *
+     * @return 临时token
+     */
+    private String generateCheckAnswerToken(CheckAnswerContext checkAnswerContext) {
+        return JwtUtil.generateToken(checkAnswerContext.getUsername(), UserConstants.FORGET_USERNAME, checkAnswerContext.getUsername(), UserConstants.FIVE_MINUTES_LONG);
+    }
 
     /**
      * 创建用户的根目录信息

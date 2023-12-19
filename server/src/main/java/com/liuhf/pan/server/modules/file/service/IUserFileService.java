@@ -16,4 +16,8 @@ public interface IUserFileService extends IService<RPanUserFile> {
      */
     Long createFolder(CreateFolderContext createFolderContext);
 
+    /**
+     * 获取用户根文件夹信息实体
+     */
+    RPanUserFile getUserRootFile(Long userId);
 }

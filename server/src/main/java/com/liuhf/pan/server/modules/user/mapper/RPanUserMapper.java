@@ -2,6 +2,7 @@ package com.liuhf.pan.server.modules.user.mapper;
 
 import com.liuhf.pan.server.modules.user.entity.RPanUser;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import org.apache.ibatis.annotations.Param;
 
 /**
 * @author 52300
@@ -11,6 +12,12 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 */
 public interface RPanUserMapper extends BaseMapper<RPanUser> {
 
+    /**
+     * 通过用户名称查询密保问题
+     * @param username
+     * @return
+     */
+    String selectQuestionByUsername(@Param("username") String username);
 }
 
 
