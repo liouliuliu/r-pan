@@ -1,21 +1,33 @@
 package com.liuhf.pan.server.modules.file.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.liuhf.pan.core.constants.RPanConstants;
 import com.liuhf.pan.core.exception.RPanBusinessException;
 import com.liuhf.pan.core.utils.IdUtil;
+import com.liuhf.pan.server.common.event.file.DeleteFileEvent;
 import com.liuhf.pan.server.modules.file.constants.FileConstants;
 import com.liuhf.pan.server.modules.file.context.CreateFolderContext;
+import com.liuhf.pan.server.modules.file.context.DeleteFileContext;
+import com.liuhf.pan.server.modules.file.context.QueryFileListContext;
+import com.liuhf.pan.server.modules.file.context.UpdateFilenameContext;
 import com.liuhf.pan.server.modules.file.entity.RPanUserFile;
 import com.liuhf.pan.server.modules.file.enums.DelFlagEnum;
 import com.liuhf.pan.server.modules.file.enums.FolderFlagEnum;
 import com.liuhf.pan.server.modules.file.service.IUserFileService;
 import com.liuhf.pan.server.modules.file.mapper.RPanUserFileMapper;
+import com.liuhf.pan.server.modules.file.vo.RPanUserFileVO;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationContextAware;
 import org.springframework.stereotype.Service;
 
 import java.util.Date;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * @author 52300
@@ -23,8 +35,14 @@ import java.util.Date;
  * @createDate 2023-12-07 22:33:53
  */
 @Service(value = "userFileService")
-public class UserFileServiceImpl extends ServiceImpl<RPanUserFileMapper, RPanUserFile> implements IUserFileService {
+public class UserFileServiceImpl extends ServiceImpl<RPanUserFileMapper, RPanUserFile> implements IUserFileService, ApplicationContextAware {
+    
+    private ApplicationContext applicationContext;
 
+    @Override
+    public void setApplicationContext(ApplicationContext applicationContext) {
+        this.applicationContext = applicationContext;
+    }
 
     /**
      * 创建文件夹信息
@@ -48,9 +66,131 @@ public class UserFileServiceImpl extends ServiceImpl<RPanUserFileMapper, RPanUse
         return getOne(queryWrapper);
     }
 
+    /**
+     * 查询用户的文件列表
+     *
+     */
+    @Override
+    public List<RPanUserFileVO> getFileList(QueryFileListContext context) {
+        return baseMapper.selectFileList(context);
+    }
+
+    /**
+     * 文件夹重命名
+     *
+     */
+    @Override
+    public void updateFilename(UpdateFilenameContext context) {
+        checkUpdateFilenameCondition(context);
+        doUpdateFilename(context);
+    }
+
+    /**
+     * 批量删除用户文件
+     *
+     */
+    @Override
+    public void deleteFile(DeleteFileContext context) {
+        checkFileDeleteCondition(context);
+        doDeleteFile(context);
+        afterFileDelete(context);
+    }
+
 
     //**************************************************private**************************************************
 
+    /**
+     * 文件删除的后置操作
+     * 1、对外发布文件删除的事件
+     */
+    private void afterFileDelete(DeleteFileContext context) {
+        DeleteFileEvent deleteFileEvent = new DeleteFileEvent(this,context.getFileIdList());
+        applicationContext.publishEvent(deleteFileEvent);
+    }
+
+    /**
+     * 执行文件删除
+     */
+    private void doDeleteFile(DeleteFileContext context) {
+        List<Long> fileIdList = context.getFileIdList();
+        UpdateWrapper<RPanUserFile> updateWrapper = new UpdateWrapper<>();
+        updateWrapper.in("file_id", fileIdList);
+        updateWrapper.set("del_flag", DelFlagEnum.Yes.getCode());
+        updateWrapper.set("update_time", new Date());
+
+        if (!update(updateWrapper)){
+            throw new RPanBusinessException("文件删除失败");
+        }
+    }
+
+    /**
+     * 删除文件的前置校验
+     */
+    private void checkFileDeleteCondition(DeleteFileContext context) {
+        List<Long> fileIdList = context.getFileIdList();
+        List<RPanUserFile> rPanUserFiles = listByIds(fileIdList);
+        if (rPanUserFiles.size() != fileIdList.size()){
+            throw new RPanBusinessException("存在不合法的文件记录");
+        }
+
+        Set<Long> fileIdSet = rPanUserFiles.stream().map(RPanUserFile::getFileId).collect(Collectors.toSet());
+        int oldSize = fileIdSet.size();
+        fileIdSet.addAll(fileIdList);
+        int newSize = fileIdSet.size();
+
+        if (oldSize != newSize){
+            throw new RPanBusinessException("存在不合法的文件记录");
+        }
+
+        Set<Long> userIdSet = rPanUserFiles.stream().map(RPanUserFile::getUserId).collect(Collectors.toSet());
+        if (userIdSet.size() != 1){
+            throw new RPanBusinessException("存在不合法的文件记录");
+        }
+
+        Long dbUserId = userIdSet.stream().findFirst().get();
+        if (!Objects.equals(dbUserId,context.getUserId())){
+            throw new RPanBusinessException("当前登录用户没有删除文件权限");
+        }
+    }
+
+    /**
+     * 执行文件重命名
+     */
+    private void doUpdateFilename(UpdateFilenameContext context) {
+        RPanUserFile entity = context.getEntity();
+        entity.setFilename(context.getNewFilename());
+        entity.setUpdateUser(context.getUserId());
+        entity.setUpdateTime(new Date());
+        if (!updateById(entity)) {
+            throw new RPanBusinessException("文件重命名失败");
+        }
+    }
+
+    /**
+     * 更新文件名称的条件校验
+     */
+    private void checkUpdateFilenameCondition(UpdateFilenameContext context) {
+        Long fileId = context.getFileId();
+        RPanUserFile entity = getById(fileId);
+        if (Objects.isNull(entity)) {
+            throw new RPanBusinessException("该文件ID无效");
+        }
+        if (!Objects.equals(entity.getUserId(), context.getUserId())) {
+            throw new RPanBusinessException("当前登录用户没有修改该文件名称的权限");
+        }
+        if (Objects.equals(entity.getFilename(), context.getNewFilename())) {
+            throw new RPanBusinessException("请换一个新的文件名称来修改");
+        }
+        QueryWrapper<RPanUserFile> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("parent_id", entity.getParentId());
+        queryWrapper.eq("filename", context.getNewFilename());
+        int count = count(queryWrapper);
+        if (count > 0) {
+            throw new RPanBusinessException("该文件夹已被占用");
+        }
+        context.setEntity(entity);
+    }
+    
     /**
      * 保存用户文件的映射记录
      */
