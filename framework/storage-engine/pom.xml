@@ -5,21 +5,16 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>com.liuhf.pan</groupId>
-        <artifactId>r-pan-parent</artifactId>
+        <artifactId>r-pan-framework</artifactId>
         <version>1.0</version>
     </parent>
 
-    <artifactId>r-pan-framework</artifactId>
+    <artifactId>r-pan-storage-engine</artifactId>
     <packaging>pom</packaging>
     <modules>
-        <module>core</module>
-        <module>web</module>
-        <module>swagger2</module>
-        <module>orm</module>
-        <module>cache</module>
-        <module>schedule</module>
-        <module>storage-engine</module>
-        <module>storage-engine/storage-engine-fastdfs</module>
+        <module>storage-engine-core</module>
+        <module>storage-engine-local</module>
+        <module>storage-engine-oss</module>
     </modules>
 
     <properties>

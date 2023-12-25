@@ -2,23 +2,28 @@ package com.liuhf.pan.server.modules.file.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.liuhf.pan.core.constants.RPanConstants;
 import com.liuhf.pan.core.exception.RPanBusinessException;
+import com.liuhf.pan.core.utils.FileUtil;
+import com.liuhf.pan.core.utils.FileUtils;
 import com.liuhf.pan.core.utils.IdUtil;
 import com.liuhf.pan.server.common.event.file.DeleteFileEvent;
 import com.liuhf.pan.server.modules.file.constants.FileConstants;
-import com.liuhf.pan.server.modules.file.context.CreateFolderContext;
-import com.liuhf.pan.server.modules.file.context.DeleteFileContext;
-import com.liuhf.pan.server.modules.file.context.QueryFileListContext;
-import com.liuhf.pan.server.modules.file.context.UpdateFilenameContext;
+import com.liuhf.pan.server.modules.file.context.*;
+import com.liuhf.pan.server.modules.file.entity.RPanFile;
 import com.liuhf.pan.server.modules.file.entity.RPanUserFile;
 import com.liuhf.pan.server.modules.file.enums.DelFlagEnum;
+import com.liuhf.pan.server.modules.file.enums.FileTypeEnum;
 import com.liuhf.pan.server.modules.file.enums.FolderFlagEnum;
+import com.liuhf.pan.server.modules.file.service.IFileService;
 import com.liuhf.pan.server.modules.file.service.IUserFileService;
 import com.liuhf.pan.server.modules.file.mapper.RPanUserFileMapper;
 import com.liuhf.pan.server.modules.file.vo.RPanUserFileVO;
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.stereotype.Service;
@@ -36,8 +41,11 @@ import java.util.stream.Collectors;
  */
 @Service(value = "userFileService")
 public class UserFileServiceImpl extends ServiceImpl<RPanUserFileMapper, RPanUserFile> implements IUserFileService, ApplicationContextAware {
-    
+
     private ApplicationContext applicationContext;
+
+    @Autowired
+    private IFileService fileService;
 
     @Override
     public void setApplicationContext(ApplicationContext applicationContext) {
@@ -68,7 +76,6 @@ public class UserFileServiceImpl extends ServiceImpl<RPanUserFileMapper, RPanUse
 
     /**
      * 查询用户的文件列表
-     *
      */
     @Override
     public List<RPanUserFileVO> getFileList(QueryFileListContext context) {
@@ -77,7 +84,6 @@ public class UserFileServiceImpl extends ServiceImpl<RPanUserFileMapper, RPanUse
 
     /**
      * 文件夹重命名
-     *
      */
     @Override
     public void updateFilename(UpdateFilenameContext context) {
@@ -87,7 +93,6 @@ public class UserFileServiceImpl extends ServiceImpl<RPanUserFileMapper, RPanUse
 
     /**
      * 批量删除用户文件
-     *
      */
     @Override
     public void deleteFile(DeleteFileContext context) {
@@ -96,15 +101,50 @@ public class UserFileServiceImpl extends ServiceImpl<RPanUserFileMapper, RPanUse
         afterFileDelete(context);
     }
 
+    /**
+     * 文件秒传
+     * 1、通过文件唯一标识，查找对应的实体文件记录
+     * 2、如果没查到，直接返回秒传失败
+     * 3、查到，直接挂载关联关系，返回秒传成功
+     */
+    @Override
+    public boolean secUpload(SecUploadFileContext context) {
+        RPanFile record = getFileByUserIdAndIdentifier(context.getUserId(), context.getIdentifier());
+        if (Objects.isNull(record)) {
+            return false;
+        }
+        saveUserFile(context.getParentId(),
+                context.getFilename(),
+                FolderFlagEnum.NO,
+                FileTypeEnum.getFileTypeCode(FileUtils.getFileSuffix(context.getFilename())),
+                record.getFileId(),
+                context.getUserId(),
+                record.getFileSizeDesc());
+        return true;
+    }
 
     //**************************************************private**************************************************
+
+    /**
+     *
+     */
+    private RPanFile getFileByUserIdAndIdentifier(Long userId, String identifier) {
+        QueryWrapper qw = Wrappers.query();
+        qw.eq("create_user", userId);
+        qw.eq("identifier", identifier);
+        List<RPanFile> records = fileService.list(qw);
+        if (CollectionUtils.isEmpty(records)) {
+            return null;
+        }
+        return records.get(RPanConstants.ZERO_INT);
+    }
 
     /**
      * 文件删除的后置操作
      * 1、对外发布文件删除的事件
      */
     private void afterFileDelete(DeleteFileContext context) {
-        DeleteFileEvent deleteFileEvent = new DeleteFileEvent(this,context.getFileIdList());
+        DeleteFileEvent deleteFileEvent = new DeleteFileEvent(this, context.getFileIdList());
         applicationContext.publishEvent(deleteFileEvent);
     }
 
@@ -118,7 +158,7 @@ public class UserFileServiceImpl extends ServiceImpl<RPanUserFileMapper, RPanUse
         updateWrapper.set("del_flag", DelFlagEnum.Yes.getCode());
         updateWrapper.set("update_time", new Date());
 
-        if (!update(updateWrapper)){
+        if (!update(updateWrapper)) {
             throw new RPanBusinessException("文件删除失败");
         }
     }
@@ -129,7 +169,7 @@ public class UserFileServiceImpl extends ServiceImpl<RPanUserFileMapper, RPanUse
     private void checkFileDeleteCondition(DeleteFileContext context) {
         List<Long> fileIdList = context.getFileIdList();
         List<RPanUserFile> rPanUserFiles = listByIds(fileIdList);
-        if (rPanUserFiles.size() != fileIdList.size()){
+        if (rPanUserFiles.size() != fileIdList.size()) {
             throw new RPanBusinessException("存在不合法的文件记录");
         }
 
@@ -138,17 +178,17 @@ public class UserFileServiceImpl extends ServiceImpl<RPanUserFileMapper, RPanUse
         fileIdSet.addAll(fileIdList);
         int newSize = fileIdSet.size();
 
-        if (oldSize != newSize){
+        if (oldSize != newSize) {
             throw new RPanBusinessException("存在不合法的文件记录");
         }
 
         Set<Long> userIdSet = rPanUserFiles.stream().map(RPanUserFile::getUserId).collect(Collectors.toSet());
-        if (userIdSet.size() != 1){
+        if (userIdSet.size() != 1) {
             throw new RPanBusinessException("存在不合法的文件记录");
         }
 
         Long dbUserId = userIdSet.stream().findFirst().get();
-        if (!Objects.equals(dbUserId,context.getUserId())){
+        if (!Objects.equals(dbUserId, context.getUserId())) {
             throw new RPanBusinessException("当前登录用户没有删除文件权限");
         }
     }
@@ -190,7 +230,7 @@ public class UserFileServiceImpl extends ServiceImpl<RPanUserFileMapper, RPanUse
         }
         context.setEntity(entity);
     }
-    
+
     /**
      * 保存用户文件的映射记录
      */

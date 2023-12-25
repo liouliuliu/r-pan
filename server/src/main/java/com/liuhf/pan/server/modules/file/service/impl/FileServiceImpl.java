@@ -2,7 +2,7 @@ package com.liuhf.pan.server.modules.file.service.impl;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.liuhf.pan.server.modules.file.entity.RPanFile;
-import com.liuhf.pan.server.modules.file.service.RPanFileService;
+import com.liuhf.pan.server.modules.file.service.IFileService;
 import com.liuhf.pan.server.modules.file.mapper.RPanFileMapper;
 import org.springframework.stereotype.Service;
 
@@ -12,8 +12,8 @@ import org.springframework.stereotype.Service;
 * @createDate 2023-12-07 22:33:53
 */
 @Service
-public class RPanFileServiceImpl extends ServiceImpl<RPanFileMapper, RPanFile>
-    implements RPanFileService{
+public class FileServiceImpl extends ServiceImpl<RPanFileMapper, RPanFile>
+    implements IFileService {
 
 }
 

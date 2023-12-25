@@ -2,9 +2,11 @@ package com.liuhf.pan.server.modules.file.converter;
 
 import com.liuhf.pan.server.modules.file.context.CreateFolderContext;
 import com.liuhf.pan.server.modules.file.context.DeleteFileContext;
+import com.liuhf.pan.server.modules.file.context.SecUploadFileContext;
 import com.liuhf.pan.server.modules.file.context.UpdateFilenameContext;
 import com.liuhf.pan.server.modules.file.po.CreateFolderPO;
 import com.liuhf.pan.server.modules.file.po.DeleteFilePO;
+import com.liuhf.pan.server.modules.file.po.SecUploadFilePO;
 import com.liuhf.pan.server.modules.file.po.UpdateFilenamePO;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
@@ -27,4 +29,8 @@ public interface FileConverter {
 
     @Mapping(target = "userId", expression = "java(com.liuhf.pan.server.common.utils.UserIdUtil.get())")
     DeleteFileContext deleteFilePO2DeleteFileContext(DeleteFilePO deleteFilePO);
+
+    @Mapping(target = "parentId", expression = "java(com.liuhf.pan.core.utils.IdUtil.decrypt(secUploadFilePO.getParentId()))")
+    @Mapping(target = "userId", expression = "java(com.liuhf.pan.server.common.utils.UserIdUtil.get())")
+    SecUploadFileContext secUploadFilePO2SecUploadFileContext(SecUploadFilePO secUploadFilePO);
 }

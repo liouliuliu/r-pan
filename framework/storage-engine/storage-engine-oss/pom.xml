@@ -5,22 +5,11 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>com.liuhf.pan</groupId>
-        <artifactId>r-pan-parent</artifactId>
+        <artifactId>r-pan-storage-engine</artifactId>
         <version>1.0</version>
     </parent>
 
-    <artifactId>r-pan-framework</artifactId>
-    <packaging>pom</packaging>
-    <modules>
-        <module>core</module>
-        <module>web</module>
-        <module>swagger2</module>
-        <module>orm</module>
-        <module>cache</module>
-        <module>schedule</module>
-        <module>storage-engine</module>
-        <module>storage-engine/storage-engine-fastdfs</module>
-    </modules>
+    <artifactId>r-pan-storage-engine-oss</artifactId>
 
     <properties>
         <maven.compiler.source>8</maven.compiler.source>
@@ -28,4 +17,11 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
+    <dependencies>
+        <dependency>
+            <groupId>com.liuhf.pan</groupId>
+            <artifactId>r-pan-storage-engine-core</artifactId>
+            <version>1.0</version>
+        </dependency>
+    </dependencies>
 </project>
