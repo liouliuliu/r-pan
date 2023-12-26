@@ -1,13 +1,8 @@
 package com.liuhf.pan.server.modules.file.converter;
 
-import com.liuhf.pan.server.modules.file.context.CreateFolderContext;
-import com.liuhf.pan.server.modules.file.context.DeleteFileContext;
-import com.liuhf.pan.server.modules.file.context.SecUploadFileContext;
-import com.liuhf.pan.server.modules.file.context.UpdateFilenameContext;
-import com.liuhf.pan.server.modules.file.po.CreateFolderPO;
-import com.liuhf.pan.server.modules.file.po.DeleteFilePO;
-import com.liuhf.pan.server.modules.file.po.SecUploadFilePO;
-import com.liuhf.pan.server.modules.file.po.UpdateFilenamePO;
+import com.liuhf.pan.server.modules.file.context.*;
+import com.liuhf.pan.server.modules.file.po.*;
+import com.liuhf.pan.storage.engine.core.context.StoreFileChunkContext;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
@@ -33,4 +28,22 @@ public interface FileConverter {
     @Mapping(target = "parentId", expression = "java(com.liuhf.pan.core.utils.IdUtil.decrypt(secUploadFilePO.getParentId()))")
     @Mapping(target = "userId", expression = "java(com.liuhf.pan.server.common.utils.UserIdUtil.get())")
     SecUploadFileContext secUploadFilePO2SecUploadFileContext(SecUploadFilePO secUploadFilePO);
+
+    @Mapping(target = "parentId", expression = "java(com.liuhf.pan.core.utils.IdUtil.decrypt(fileUploadPO.getParentId()))")
+    @Mapping(target = "userId", expression = "java(com.liuhf.pan.server.common.utils.UserIdUtil.get())")
+    FileUploadContext fileUploadPO2FileUploadContext(FileUploadPO fileUploadPO);
+
+    @Mapping(target = "record", ignore = true)
+    FileSaveContext fileUploadContext2FileSaveContext(FileUploadContext context);
+
+    @Mapping(target = "userId", expression = "java(com.liuhf.pan.server.common.utils.UserIdUtil.get())")
+    FileChunkUploadContext fileChunkUploadPO2FileChunkUploadContext(FileChunkUploadPO fileChunkUploadPO);
+
+    FileChunkSaveContext fileChunkUploadContext2FileChunkSaveContext(FileChunkUploadContext context);
+
+    @Mapping(target = "realPath", ignore = true)
+    StoreFileChunkContext fileChunkSaveContext2StoreFileChunkContext(FileChunkSaveContext context);
+
+    @Mapping(target = "userId", expression = "java(com.liuhf.pan.server.common.utils.UserIdUtil.get())")
+    QueryUploadedChunksContext queryUploadedChunksPO2QueryUploadedChunksContext(QueryUploadedChunksPO queryUploadedChunksPO);
 }

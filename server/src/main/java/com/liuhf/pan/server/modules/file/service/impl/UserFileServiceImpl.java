@@ -12,21 +12,28 @@ import com.liuhf.pan.core.utils.IdUtil;
 import com.liuhf.pan.server.common.event.file.DeleteFileEvent;
 import com.liuhf.pan.server.modules.file.constants.FileConstants;
 import com.liuhf.pan.server.modules.file.context.*;
+import com.liuhf.pan.server.modules.file.converter.FileConverter;
 import com.liuhf.pan.server.modules.file.entity.RPanFile;
+import com.liuhf.pan.server.modules.file.entity.RPanFileChunk;
 import com.liuhf.pan.server.modules.file.entity.RPanUserFile;
 import com.liuhf.pan.server.modules.file.enums.DelFlagEnum;
 import com.liuhf.pan.server.modules.file.enums.FileTypeEnum;
 import com.liuhf.pan.server.modules.file.enums.FolderFlagEnum;
+import com.liuhf.pan.server.modules.file.po.QueryRealFileListContext;
+import com.liuhf.pan.server.modules.file.service.IFileChunkService;
 import com.liuhf.pan.server.modules.file.service.IFileService;
 import com.liuhf.pan.server.modules.file.service.IUserFileService;
 import com.liuhf.pan.server.modules.file.mapper.RPanUserFileMapper;
+import com.liuhf.pan.server.modules.file.vo.FileChunkUploadVO;
 import com.liuhf.pan.server.modules.file.vo.RPanUserFileVO;
+import com.liuhf.pan.server.modules.file.vo.UploadedChunksVO;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Date;
 import java.util.List;
@@ -46,6 +53,12 @@ public class UserFileServiceImpl extends ServiceImpl<RPanUserFileMapper, RPanUse
 
     @Autowired
     private IFileService fileService;
+
+    @Autowired
+    private FileConverter fileConverter;
+
+    @Autowired
+    private IFileChunkService fileChunkService;
 
     @Override
     public void setApplicationContext(ApplicationContext applicationContext) {
@@ -109,34 +122,89 @@ public class UserFileServiceImpl extends ServiceImpl<RPanUserFileMapper, RPanUse
      */
     @Override
     public boolean secUpload(SecUploadFileContext context) {
-        RPanFile record = getFileByUserIdAndIdentifier(context.getUserId(), context.getIdentifier());
-        if (Objects.isNull(record)) {
-            return false;
+        List<RPanFile> fileList = getFileByUserIdAndIdentifier(context.getUserId(), context.getIdentifier());
+        if (CollectionUtils.isNotEmpty(fileList)) {
+            RPanFile record = fileList.get(RPanConstants.ZERO_INT);
+            saveUserFile(context.getParentId(),
+                    context.getFilename(),
+                    FolderFlagEnum.NO,
+                    FileTypeEnum.getFileTypeCode(FileUtils.getFileSuffix(context.getFilename())),
+                    record.getFileId(),
+                    context.getUserId(),
+                    record.getFileSizeDesc());
+            return true;
         }
-        saveUserFile(context.getParentId(),
-                context.getFilename(),
-                FolderFlagEnum.NO,
-                FileTypeEnum.getFileTypeCode(FileUtils.getFileSuffix(context.getFilename())),
-                record.getFileId(),
-                context.getUserId(),
-                record.getFileSizeDesc());
-        return true;
+        return false;
     }
+
+    /**
+     * 单文件上传
+     * 1.上传文件并保存实体文件记录
+     * 2.保存用户文件的关系记录
+     */
+    @Transactional(rollbackFor = Exception.class)
+    @Override
+    public void upload(FileUploadContext context) {
+        saveFile(context);
+        saveUserFile(context.getParentId(), context.getFilename(),
+                FolderFlagEnum.NO, FileTypeEnum.getFileTypeCode(FileUtil.getFileSuffix(context.getFilename())),
+                context.getRecord().getFileId(), context.getUserId(), context.getRecord().getFileSizeDesc());
+    }
+
+    /**
+     * 文件分片上传
+     * 1、上传实体文件
+     * 2、保存分片文件记录
+     * 3、校验是否全部分片上传完成
+     *
+     */
+    @Override
+    public FileChunkUploadVO chunkUpload(FileChunkUploadContext context) {
+        FileChunkSaveContext fileChunkSaveContext = fileConverter.fileChunkUploadContext2FileChunkSaveContext(context);
+        fileChunkService.saveChunkFile(fileChunkSaveContext);
+        FileChunkUploadVO vo = new FileChunkUploadVO();
+        vo.setMergeFlag(fileChunkSaveContext.getMergeFlagEnum().getCode());
+        return vo;
+    }
+
+    /**
+     * 查询用户已上传的分片列表
+     * 1.查询已上传的分片列表
+     * 2.封装返回实体
+     */
+    @Override
+    public UploadedChunksVO getUploadedChunks(QueryUploadedChunksContext context) {
+        QueryWrapper<RPanFileChunk> queryWrapper = Wrappers.query();
+        queryWrapper.select("chunk_number");
+        queryWrapper.eq("create_user", context.getUserId());
+        queryWrapper.gt("expiration_time", new Date());
+
+        List<Integer> uploadedChunks = fileChunkService.listObjs(queryWrapper, value -> (Integer) value);
+        UploadedChunksVO vo = new UploadedChunksVO();
+        vo.setUploadedChunks(uploadedChunks);
+        return vo;
+    }
+
 
     //**************************************************private**************************************************
 
     /**
+     * 上传文件并保存实体文件记录
+     */
+    private void saveFile(FileUploadContext context) {
+        FileSaveContext fileSaveContext = fileConverter.fileUploadContext2FileSaveContext(context);
+        fileService.saveFile(fileSaveContext);
+        context.setRecord(fileSaveContext.getRecord());
+    }
+
+    /**
      *
      */
-    private RPanFile getFileByUserIdAndIdentifier(Long userId, String identifier) {
-        QueryWrapper qw = Wrappers.query();
-        qw.eq("create_user", userId);
-        qw.eq("identifier", identifier);
-        List<RPanFile> records = fileService.list(qw);
-        if (CollectionUtils.isEmpty(records)) {
-            return null;
-        }
-        return records.get(RPanConstants.ZERO_INT);
+    private List<RPanFile> getFileByUserIdAndIdentifier(Long userId, String identifier) {
+        QueryRealFileListContext context = new QueryRealFileListContext();
+        context.setUserId(userId);
+        context.setIdentifier(identifier);
+        return fileService.getFileList(context);
     }
 
     /**

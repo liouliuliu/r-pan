@@ -1,5 +1,6 @@
 package com.liuhf.pan.server.modules.file;
 
+import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.lang.Assert;
 import com.google.common.collect.Lists;
 import com.liuhf.pan.core.exception.RPanBusinessException;
@@ -7,10 +8,13 @@ import com.liuhf.pan.core.utils.IdUtil;
 import com.liuhf.pan.server.RPanServerLauncher;
 import com.liuhf.pan.server.modules.file.context.*;
 import com.liuhf.pan.server.modules.file.entity.RPanFile;
+import com.liuhf.pan.server.modules.file.entity.RPanFileChunk;
 import com.liuhf.pan.server.modules.file.enums.DelFlagEnum;
+import com.liuhf.pan.server.modules.file.service.IFileChunkService;
 import com.liuhf.pan.server.modules.file.service.IFileService;
 import com.liuhf.pan.server.modules.file.service.IUserFileService;
 import com.liuhf.pan.server.modules.file.vo.RPanUserFileVO;
+import com.liuhf.pan.server.modules.file.vo.UploadedChunksVO;
 import com.liuhf.pan.server.modules.user.context.UserLoginContext;
 import com.liuhf.pan.server.modules.user.context.UserRegisterContext;
 import com.liuhf.pan.server.modules.user.service.IUserService;
@@ -46,6 +50,9 @@ public class FileTest {
     
     @Autowired
     private IFileService fileService;
+    
+    @Autowired
+    private IFileChunkService fileChunkService;
 
     /**
      * 测试用户查询文件列表成功
@@ -346,6 +353,36 @@ public class FileTest {
 
         boolean result = userFileService.secUpload(context);
         Assert.isFalse(result);
+    }
+
+
+    /**
+     * 测试查询用户已上传的文件分片信息列表成功
+     */
+    @Test
+    public void testQueryUploadedChunksSuccess() {
+        Long userId = register();
+
+        String identifier = "123456789";
+
+        RPanFileChunk record = new RPanFileChunk();
+        record.setId(IdUtil.get());
+        record.setIdentifier(identifier);
+        record.setRealPath("realPath");
+        record.setChunkNumber(1);
+        record.setExpirationTime(DateUtil.offsetDay(new Date(), 1));
+        record.setCreateUser(userId);
+        record.setCreateTime(new Date());
+        boolean save = fileChunkService.save(record);
+        Assert.isTrue(save);
+
+        QueryUploadedChunksContext context = new QueryUploadedChunksContext();
+        context.setIdentifier(identifier);
+        context.setUserId(userId);
+
+        UploadedChunksVO vo = userFileService.getUploadedChunks(context);
+        Assert.notNull(vo);
+        Assert.notEmpty(vo.getUploadedChunks());
     }
 
 

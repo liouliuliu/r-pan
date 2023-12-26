@@ -3,7 +3,9 @@ package com.liuhf.pan.server.modules.file.service;
 import com.liuhf.pan.server.modules.file.context.*;
 import com.liuhf.pan.server.modules.file.entity.RPanUserFile;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.liuhf.pan.server.modules.file.vo.FileChunkUploadVO;
 import com.liuhf.pan.server.modules.file.vo.RPanUserFileVO;
+import com.liuhf.pan.server.modules.file.vo.UploadedChunksVO;
 
 import java.util.List;
 
@@ -43,4 +45,20 @@ public interface IUserFileService extends IService<RPanUserFile> {
      * 文件秒传
      */
     boolean secUpload(SecUploadFileContext context);
+
+    /**
+     * 单文件上传
+     */
+    void upload(FileUploadContext context);
+
+    /**
+     * 文件分片上传
+     */
+    FileChunkUploadVO chunkUpload(FileChunkUploadContext context);
+
+    /**
+     * 查询用户已上传的分片列表
+     */
+    UploadedChunksVO getUploadedChunks(QueryUploadedChunksContext context);
+    
 }

@@ -9,12 +9,11 @@ import com.liuhf.pan.server.modules.file.constants.FileConstants;
 import com.liuhf.pan.server.modules.file.context.*;
 import com.liuhf.pan.server.modules.file.converter.FileConverter;
 import com.liuhf.pan.server.modules.file.enums.DelFlagEnum;
-import com.liuhf.pan.server.modules.file.po.CreateFolderPO;
-import com.liuhf.pan.server.modules.file.po.DeleteFilePO;
-import com.liuhf.pan.server.modules.file.po.SecUploadFilePO;
-import com.liuhf.pan.server.modules.file.po.UpdateFilenamePO;
+import com.liuhf.pan.server.modules.file.po.*;
 import com.liuhf.pan.server.modules.file.service.IUserFileService;
+import com.liuhf.pan.server.modules.file.vo.FileChunkUploadVO;
 import com.liuhf.pan.server.modules.file.vo.RPanUserFileVO;
+import com.liuhf.pan.server.modules.file.vo.UploadedChunksVO;
 import io.swagger.annotations.ApiOperation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -123,5 +122,44 @@ public class FileController {
             return R.success();
         }
         return R.fail("文件唯一标识不存在，请手动执行文件上传的操作");
+    }
+
+    @ApiOperation(
+            value = "单文件上传",
+            notes = "该接口提供了单文件上传的功能",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE,
+            produces = MediaType.APPLICATION_JSON_UTF8_VALUE
+    )
+    @DeleteMapping("file/upload")
+    public R<String> upload(@Validated FileUploadPO fileUploadPO) {
+        FileUploadContext context = fileConverter.fileUploadPO2FileUploadContext(fileUploadPO);
+        userFileService.upload(context);
+        return R.success();
+    }
+
+    @ApiOperation(
+            value = "文件分片上传",
+            notes = "该接口提供了文件分片上传的功能",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE,
+            produces = MediaType.APPLICATION_JSON_UTF8_VALUE
+    )
+    @PostMapping("file/chunk-upload")
+    public R<FileChunkUploadVO> chunkUpload(@Validated FileChunkUploadPO fileChunkUploadPO) {
+        FileChunkUploadContext context = fileConverter.fileChunkUploadPO2FileChunkUploadContext(fileChunkUploadPO);
+        FileChunkUploadVO vo = userFileService.chunkUpload(context);
+        return R.data(vo);
+    }
+
+    @ApiOperation(
+            value = "查询已经上传的文件分片列表",
+            notes = "该接口提供了查询已经上传的文件分片列表的功能",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE,
+            produces = MediaType.APPLICATION_JSON_UTF8_VALUE
+    )
+    @GetMapping("file/chunk-upload")
+    public R<UploadedChunksVO> getUploadChunks(@Validated QueryUploadedChunksPO queryUploadedChunksPO) {
+        QueryUploadedChunksContext context = fileConverter.queryUploadedChunksPO2QueryUploadedChunksContext(queryUploadedChunksPO);
+        UploadedChunksVO vo = userFileService.getUploadedChunks(context);
+        return R.data(vo);
     }
 }
