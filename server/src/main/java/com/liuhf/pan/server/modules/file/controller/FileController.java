@@ -162,4 +162,17 @@ public class FileController {
         UploadedChunksVO vo = userFileService.getUploadedChunks(context);
         return R.data(vo);
     }
+
+    @ApiOperation(
+            value = "文件分片合并",
+            notes = "该接口提供了文件分片合并的功能",
+            consumes = MediaType.APPLICATION_JSON_UTF8_VALUE,
+            produces = MediaType.APPLICATION_JSON_UTF8_VALUE
+    )
+    @GetMapping("file/marge")
+    public R margeFile(@Validated @RequestBody FileChunkMergePO fileChunkMergePO) {
+        FileChunkMergeContext context = fileConverter.fileChunkMergePO2FileChunkMergeContext(fileChunkMergePO);
+        userFileService.mergeFile(context);
+        return R.success();
+    }
 }

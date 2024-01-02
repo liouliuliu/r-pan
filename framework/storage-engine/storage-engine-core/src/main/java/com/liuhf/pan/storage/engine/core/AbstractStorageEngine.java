@@ -4,6 +4,7 @@ import cn.hutool.core.lang.Assert;
 import com.liuhf.pan.cache.core.constants.CacheConstants;
 import com.liuhf.pan.core.exception.RPanFrameworkException;
 import com.liuhf.pan.storage.engine.core.context.DeleteFileContext;
+import com.liuhf.pan.storage.engine.core.context.MergeFileContext;
 import com.liuhf.pan.storage.engine.core.context.StoreFileChunkContext;
 import com.liuhf.pan.storage.engine.core.context.StoreFileContext;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -95,7 +96,6 @@ public abstract class AbstractStorageEngine implements StorageEngine {
     /**
      * 保存文件分片
      * 下沉到子类去实现
-     * @param context
      */
     protected abstract void doStoreChunk(StoreFileChunkContext context) throws IOException;
 
@@ -111,5 +111,34 @@ public abstract class AbstractStorageEngine implements StorageEngine {
         Assert.notNull(context.getChunkNumber(), "文件分片下标不能为空");
         Assert.notNull(context.getCurrentChunkSize(), "文件分片的大小不能为空");
         Assert.notNull(context.getUserId(), "当前登录用户的ID不能为空");
+    }
+
+    /**
+     * 合并文件分片
+     * <p>
+     * 1、检查参数
+     * 2、执行动作
+     *
+     */
+    @Override
+    public void mergeFile(MergeFileContext context) throws IOException {
+        checkMergeFileContext(context);
+        doMergeFile(context);
+    }
+
+    /**
+     * 执行文件分片的动作
+     * 下沉到子类实现
+     */
+    protected abstract void doMergeFile(MergeFileContext context) throws IOException;
+
+    /**
+     * 检查文件分片合并的上线文实体信息
+     */
+    private void checkMergeFileContext(MergeFileContext context) {
+        Assert.notBlank(context.getFilename(), "文件名称不能为空");
+        Assert.notBlank(context.getIdentifier(), "文件唯一标识不能为空");
+        Assert.notNull(context.getUserId(), "当前登录用户的ID不能为空");
+        Assert.notEmpty(context.getRealPathList(), "文件分片列表不能为空");
     }
 }

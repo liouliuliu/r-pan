@@ -185,8 +185,35 @@ public class UserFileServiceImpl extends ServiceImpl<RPanUserFileMapper, RPanUse
         return vo;
     }
 
+    /**
+     * 文件分片合并
+     * 1.文件分片物理合并
+     * 2.保存文件实体记录
+     * 3.保存文件用户关系映射
+     */
+    @Override
+    public void mergeFile(FileChunkMergeContext context) {
+        mergeFileChunkAndSaveFile(context);
+        saveUserFile(context.getParentId(),
+                context.getFilename(),
+                FolderFlagEnum.NO,
+                FileTypeEnum.getFileTypeCode(FileUtils.getFileSuffix(context.getFilename())),
+                context.getRecord().getFileId(),
+                context.getUserId(),
+                context.getRecord().getFileSizeDesc());
+    }
 
+   
     //**************************************************private**************************************************
+
+    /**
+     * 合并文件分片并保存物理文件记录
+     */
+    private void mergeFileChunkAndSaveFile(FileChunkMergeContext context) {
+        FileChunkMergeAndSaveContext fileChunkMergeAndSaveContext = fileConverter.fileChunkMergeContext2FileChunkMergeAndSaveContext(context);
+        fileService.mergeFileChunkAndSaveFile(fileChunkMergeAndSaveContext);
+        context.setRecord(fileChunkMergeAndSaveContext.getRecord());
+    }
 
     /**
      * 上传文件并保存实体文件记录

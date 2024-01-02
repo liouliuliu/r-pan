@@ -1,5 +1,6 @@
 package com.liuhf.pan.server.modules.file.service;
 
+import com.liuhf.pan.server.modules.file.context.FileChunkMergeAndSaveContext;
 import com.liuhf.pan.server.modules.file.context.FileSaveContext;
 import com.liuhf.pan.server.modules.file.entity.RPanFile;
 import com.baomidou.mybatisplus.extension.service.IService;
@@ -24,4 +25,8 @@ public interface IFileService extends IService<RPanFile> {
      */
     void saveFile(FileSaveContext context);
 
+    /**
+     * 合并物理文件并保存物理文件记录
+     */
+    void mergeFileChunkAndSaveFile(FileChunkMergeAndSaveContext context);
 }

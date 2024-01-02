@@ -2,6 +2,7 @@ package com.liuhf.pan.storage.engine.fastdfs;
 
 import com.liuhf.pan.storage.engine.core.AbstractStorageEngine;
 import com.liuhf.pan.storage.engine.core.context.DeleteFileContext;
+import com.liuhf.pan.storage.engine.core.context.MergeFileContext;
 import com.liuhf.pan.storage.engine.core.context.StoreFileChunkContext;
 import com.liuhf.pan.storage.engine.core.context.StoreFileContext;
 import org.springframework.stereotype.Component;
@@ -44,7 +45,18 @@ public class FastDFSStorageEngine extends AbstractStorageEngine {
      * @param context
      */
     @Override
-    protected void doStoreChunk(StoreFileChunkContext context) {
+    protected void doStoreChunk(StoreFileChunkContext context) throws IOException{
+        
+    }
+
+    /**
+     * 执行文件分片的动作
+     * 下沉到子类实现
+     *
+     * @param context
+     */
+    @Override
+    protected void doMergeFile(MergeFileContext context) throws IOException {
         
     }
 }

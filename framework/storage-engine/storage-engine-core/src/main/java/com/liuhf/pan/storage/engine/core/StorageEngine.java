@@ -1,6 +1,7 @@
 package com.liuhf.pan.storage.engine.core;
 
 import com.liuhf.pan.storage.engine.core.context.DeleteFileContext;
+import com.liuhf.pan.storage.engine.core.context.MergeFileContext;
 import com.liuhf.pan.storage.engine.core.context.StoreFileChunkContext;
 import com.liuhf.pan.storage.engine.core.context.StoreFileContext;
 
@@ -27,4 +28,9 @@ public interface StorageEngine {
      * 存储物理文件的分片
      */
     void storeChunk(StoreFileChunkContext context) throws IOException;
+
+    /**
+     * 合并文件分片
+     */
+    void mergeFile(MergeFileContext context) throws IOException;
 }
